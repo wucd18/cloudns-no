@@ -1,0 +1,50 @@
+name: Renew certificates
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-13
+    env:
+      CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+      CF_TOKEN: ${{ secrets.CF_TOKEN }}
+      HC_LINK: ${{ secrets.HC_LINK }}
+      CD_EMAIL: ${{ secrets.CD_EMAIL }}
+      CD_PASSWD: ${{ secrets.CD_PASSWD }}
+      CD_ZONE: ${{ secrets.CD_ZONE }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Dependencies
+        run: |
+          pip3 install -U undetected_chromedriver httpx setuptools
+            
+      - name: Run script
+        run: |
+          screen -dm bash -c 'screencapture -V 35 out.mov'
+          echo "Success"
+          ls
+          python3 renew.py
+      
+      - name: Upload recording
+        if: success() || failure()
+        uses: actions/upload-artifact@main
+        with:
+          name: record
+          path: out.mov
+  re-run:
+    needs: build
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          GH_DEBUG: api
+        run: gh workflow run rerun.yml -F run_id=${{ github.run_id }}
+    
